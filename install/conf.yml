@@ -1,0 +1,85 @@
+# Micro-service configuration file
+#
+# - mind the case
+# - all strings containing special characters `` [] {} : > | `` .
+#   should be escaped by double quotes
+# - mind the indentation (2 spaces for each indentation level)
+# - comments should start with a "#" sign.
+
+
+
+# serviceConfig contains runtime micro-service configuration.
+serviceConfig:
+
+  # loadBalanceVersion identifies which cluster this instance will belong to
+  # when deploying multiple instances of the micro-service.
+  # More information here:
+  # https://micro.mu/blog/2016/04/18/micro-architecture.html#versioning
+  loadBalanceVersion: cluster1
+
+  # registerInterval is the interval for sending alive pulses to the
+  # service registry.
+  registerInterval: 5s
+
+  # masterAPIKey is the default API Key to use when none is in the system. This
+  # should be deleted once the system is set up
+  masterAPIKey:
+
+  # authTokenKeyFile is the location of the file containing sha256 key that will
+  # be used to encrypt the JWT produced by this micro-service or decrypt
+  # the JWT by the prevailing authentication micro-service.
+  # The file should contain only the key and no new line characters.
+  authTokenKeyFile: /etc/usersms/keys/jwt_sha256.key
+
+  # allowedOrigins is a list of entries provided for Access-Control-Allow-Origin header
+  # It takes the formats:
+  #
+  # Allow all origins access
+  # - "*"
+  #
+  # or Allow specific domains e.g. "http://localhost"
+  # - "domain1"
+  # - "domain2"
+  # - ...
+  #
+  # or Block all other domains, but the serving host:
+  # "null" or "" or left empty
+  allowedOrigins:
+
+
+
+# database contains configuration values for accessing CockroachDB as the
+# persistent store for the micro-service.
+# For documentation on getting these values, visit https://www.cockroachlabs.com
+database:
+  # user - The user to sign in as
+  user: root
+  # password - The user's password
+  password: ""
+  # host - The host to connect to. Values that start with / are for unix domain
+  # sockets. (default is localhost)
+  host:
+  # port - The port to bind to. (default is 5432)
+  port: 26257
+  # dbname - The name of the database to connect to
+  dbName: usersms
+  # connect_timeout - Maximum wait for connection, in seconds. Zero or not
+  # specified means wait indefinitely.
+  connectTimeout:
+  # sslmode - Whether or not to use SSL (default is require).
+  # Valid values are:
+  # disable     - No SSL
+  # require     - Always SSL (skip verification)
+  # verify-ca   - Always SSL (verify that the certificate presented
+  #               by the server was signed by a trusted CA)
+  # verify-full - Always SSL (verify that the certification presented by the
+  #               server was signed by a trusted CA and the server host name
+  #               matches the one in the certificate)
+  sslMode: verify-ca
+  # sslcert - Cert file location. The file must contain PEM encoded data.
+  sslCert: /etc/cockroachdb/certs/node.crt
+  # sslkey - Key file location. The file must contain PEM encoded data.
+  sslKey: /etc/cockroachdb/certs/node.key
+  # sslrootcert - The location of the root certificate file. The file must
+  # contain PEM encoded data.
+  sslRootCert: /etc/cockroachdb/certs/ca.crt

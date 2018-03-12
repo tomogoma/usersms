@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package api;
+
+service Status {
+    rpc Check(Request) returns (Response) {}
+}
+
+message Request {
+    string APIKey = 1;
+}
+
+message Response {
+    string name = 1;
+    string version = 2;
+    string description= 3;
+    string canonicalName= 4;
+}
