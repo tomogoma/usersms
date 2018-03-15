@@ -7,47 +7,79 @@ import (
 	"testing"
 
 	"github.com/tomogoma/go-typed-errors"
-	"github.com/tomogoma/usersms/pkg/logging"
-	testingH "github.com/tomogoma/usersms/pkg/mocks"
+	"github.com/tomogoma/usersms/pkg/mocks"
 )
 
 func TestNewHandler(t *testing.T) {
 	tt := []struct {
-		name           string
-		guard          Guard
-		logger         logging.Logger
-		allowedOrigins []string
-		expErr         bool
+		name   string
+		conf   Config
+		expErr bool
 	}{
 		{
-			name:           "valid deps",
-			guard:          &testingH.Guard{},
-			logger:         &testingH.Logger{},
-			allowedOrigins: []string{"*"},
-			expErr:         false,
-		},
-		{
-			name:   "valid deps (nil origins)",
-			guard:  &testingH.Guard{},
-			logger: &testingH.Logger{},
+			name: "valid deps",
+			conf: Config{
+				Guard:        &mocks.Guard{},
+				Logger:       &mocks.Logger{},
+				Rater:        &mocks.Rater{},
+				UserProfiler: &mocks.User{},
+			},
 			expErr: false,
 		},
 		{
-			name:   "nil guard",
-			guard:  nil,
-			logger: &testingH.Logger{},
+			name: "valid deps (nil origins)",
+			conf: Config{
+				Guard:  &mocks.Guard{},
+				Logger: &mocks.Logger{},
+				Rater:        &mocks.Rater{},
+				UserProfiler: &mocks.User{},
+			},
+			expErr: false,
+		},
+		{
+			name: "nil guard",
+			conf: Config{
+				Guard:  nil,
+				Logger: &mocks.Logger{},
+				Rater:        &mocks.Rater{},
+				UserProfiler: &mocks.User{},
+			},
 			expErr: true,
 		},
 		{
-			name:   "nil logger",
-			guard:  &testingH.Guard{},
-			logger: nil,
+			name: "nil logger",
+			conf: Config{
+				Guard:  &mocks.Guard{},
+				Logger: nil,
+				Rater:        &mocks.Rater{},
+				UserProfiler: &mocks.User{},
+			},
+			expErr: true,
+		},
+		{
+			name: "nil Rater",
+			conf: Config{
+				Guard:        &mocks.Guard{},
+				Logger:       &mocks.Logger{},
+				Rater:        nil,
+				UserProfiler: &mocks.User{},
+			},
+			expErr: true,
+		},
+		{
+			name: "nil UserProfiler",
+			conf: Config{
+				Guard:        &mocks.Guard{},
+				Logger:       &mocks.Logger{},
+				Rater:        &mocks.Rater{},
+				UserProfiler: nil,
+			},
 			expErr: true,
 		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			h, err := NewHandler(tc.guard, tc.logger, "", tc.allowedOrigins)
+			h, err := NewHandler(tc.conf)
 			if tc.expErr {
 				if err == nil {
 					t.Fatal("Expected an error but got nil")
@@ -67,37 +99,45 @@ func TestNewHandler(t *testing.T) {
 func TestHandler_handleRoute(t *testing.T) {
 	tt := []struct {
 		name          string
-		baseURL       string
 		reqURLSuffix  string
 		reqMethod     string
 		reqBody       string
 		reqWBasicAuth bool
 		expStatusCode int
-		guard         Guard
+		conf          Config
 	}{
-		// values starting and ending with "_" are place holders for variables
-		// e.g. _loginType_ is a place holder for "any (valid) login type"
-
 		{
 			name:          "status",
-			guard:         &testingH.Guard{},
+			conf:          Config{Guard: &mocks.Guard{}},
 			reqURLSuffix:  "/status",
 			reqMethod:     http.MethodGet,
 			expStatusCode: http.StatusOK,
 		},
 		{
-			name:          "status guard error",
-			guard:         &testingH.Guard{ExpAPIKValidErr: errors.Newf("guard error")},
+			name: "status guard error",
+			conf: Config{
+				Guard: &mocks.Guard{ExpAPIKValidErr: errors.Newf("guard error")},
+			},
 			reqURLSuffix:  "/status",
 			reqMethod:     http.MethodGet,
 			expStatusCode: http.StatusInternalServerError,
+		},
+		{
+			name:          "not found",
+			conf:          Config{Guard: &mocks.Guard{}},
+			reqURLSuffix:  "/none_existent",
+			reqMethod:     http.MethodGet,
+			expStatusCode: http.StatusNotFound,
 		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 
-			lg := &testingH.Logger{}
-			h := newHandler(t, tc.guard, lg, tc.baseURL, nil)
+			lg := &mocks.Logger{}
+			tc.conf.Logger = lg
+			tc.conf.Rater = &mocks.Rater{}
+			tc.conf.UserProfiler = &mocks.User{}
+			h := newHandler(t, tc.conf)
 			srvr := httptest.NewServer(h)
 			defer srvr.Close()
 
@@ -129,8 +169,8 @@ func TestHandler_handleRoute(t *testing.T) {
 	}
 }
 
-func newHandler(t *testing.T, g Guard, lg logging.Logger, baseURL string, allowedOrigins []string) http.Handler {
-	h, err := NewHandler(g, lg, baseURL, allowedOrigins)
+func newHandler(t *testing.T, conf Config) http.Handler {
+	h, err := NewHandler(conf)
 	if err != nil {
 		t.Fatalf("http.NewHandler(): %v", err)
 	}

@@ -29,8 +29,10 @@ func main() {
 	go serveRPC(deps.Config.Service, rpcSrv, serverRPCQuitCh)
 
 	serverHttpQuitCh := make(chan error)
-	httpHandler, err := httpIntl.NewHandler(deps.Guard, log, config.WebRootPath(),
-		deps.Config.Service.AllowedOrigins)
+	httpHConf := httpIntl.Config{Guard: deps.Guard, Logger: log,
+		BaseURL: config.WebRootPath(),
+		AllowedOrigins: deps.Config.Service.AllowedOrigins}
+	httpHandler, err := httpIntl.NewHandler(httpHConf)
 	logging.LogFatalOnError(log, err, "Instantiate HTTP handler")
 	go serveHttp(deps.Config.Service, httpHandler, serverHttpQuitCh)
 
