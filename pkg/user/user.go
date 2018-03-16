@@ -27,4 +27,5 @@ type UserUpdate struct {
 	Gender    StringUpdate
 	AvatarURL StringUpdate
 	Bio       StringUpdate
+	Time      time.Time
 }

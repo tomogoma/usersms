@@ -59,6 +59,7 @@ func (m *Manager) Update(JWT string, update UserUpdate) (*User, error) {
 		return nil, err
 	}
 
+	update.Time = time.Now()
 	usr, err := m.db.UpsertUser(update)
 	if err != nil {
 		return nil, errors.Newf("upsert user: %v", err)
