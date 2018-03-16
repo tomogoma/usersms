@@ -8,9 +8,11 @@ import (
 type Rater struct {
 	errors.ErrToHTTP
 
-	RtUsrRecTkn  string
-	RtUsrRecRtng rating.Rating
-	RtUsrErr     error
+	RtUsrRecTkn     string
+	RtUsrRecFrUsrID string
+	RtUsrRecCmnt    string
+	RtUsrRecRtng    int32
+	RtUsrErr        error
 
 	RtngsRecTkn  string
 	RtngsRecFltr rating.Filter
@@ -18,8 +20,10 @@ type Rater struct {
 	RtngsErr     error
 }
 
-func (r *Rater) RateUser(token string, rating rating.Rating) error {
+func (r *Rater) RateUser(token string, forUserID, comment string, rating int32) error {
 	r.RtUsrRecTkn = token
+	r.RtUsrRecFrUsrID = forUserID
+	r.RtUsrRecCmnt = comment
 	r.RtUsrRecRtng = rating
 	return r.RtUsrErr
 }

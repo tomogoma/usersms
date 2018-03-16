@@ -13,6 +13,11 @@ import (
 	"github.com/tomogoma/usersms/pkg/logging"
 	"github.com/tomogoma/usersms/pkg/user"
 	"github.com/tomogoma/usersms/pkg/rating"
+	"io/ioutil"
+	"strings"
+	"time"
+	"net/url"
+	"strconv"
 )
 
 type contextKey string
@@ -23,14 +28,14 @@ type Guard interface {
 
 type Rater interface {
 	errors.ToHTTPResponser
-	RateUser(token string, rating rating.Rating) error
+	RateUser(token, forUserID, comment string, rating int32) error
 	Ratings(token string, filter rating.Filter) ([]rating.Rating, error)
 }
 
 type UserProfiler interface {
 	errors.ToHTTPResponser
 	Update(token string, update user.UserUpdate) (*user.User, error)
-	User(token, ID, offsetUpdateDate string) (*user.User, error)
+	User(token, ID string, offsetUpdateDate time.Time) (*user.User, error)
 }
 
 type handler struct {
@@ -43,7 +48,16 @@ type handler struct {
 }
 
 const (
-	keyAPIKey = "x-api-key"
+	keyAPIKey           = "x-api-key"
+	keyUserID           = "userID"
+	keyAuthorization    = "Authorization"
+	keyOffsetUpdateDate = "offsetUpdateDate"
+	keyOffset           = "offset"
+	keyCount            = "count"
+	keyByUserID         = "byUserID"
+	keyForUserID        = "forUserID"
+
+	valBearerAuthPrefix = "bearer "
 
 	ctxKeyLog = contextKey("log")
 )
@@ -114,21 +128,53 @@ func (s *handler) handleStatus(w http.ResponseWriter, r *http.Request) {
  * @apiName Update User Profile
  * @apiVersion 0.1.0
  * @apiGroup Service
+ * @apiDescription All declared JSON values are used, including empty strings, except null values.
  *
  * @apiHeader x-api-key the api key
  * @apiHeader Authorization Bearer token containing auth token e.g. "Bearer [value.of.jwt]"
  *
- * @apiParam (JSON Body) {String} [name] New Name
- * @apiParam (JSON Body) {String} [ICEPhone] New (In Case of Emergency)
- * 		phone number
- * @apiParam (JSON Body) {String="MALE","FEMALE","OTHER"} [gender] New gender
- * @apiParam (JSON Body) {Object} [avatarURL] New profile picture URL
- * @apiParam (JSON Body) {Object} [bio] New brief description of user
+ * @apiParam (JSON Request Body) {String} [name] New Name.
+ * @apiParam (JSON Request Body) {String} [ICEPhone] New (In Case of Emergency) phone number.
+ * @apiParam (JSON Request Body) {String="MALE","FEMALE","OTHER"} [gender] New gender.
+ * @apiParam (JSON Request Body) {Object} [avatarURL] New profile picture URL.
+ * @apiParam (JSON Request Body) {Object} [bio] New brief description of user.
  *
- * @apiSuccess (200) {JSON} body  Updated <a href="#api-Objects-User">user</a> object
+ * @apiUse User200
  *
  */
 func (s *handler) handleUserUpdate(w http.ResponseWriter, r *http.Request) {
+	req := struct {
+		UserID    string     `json:"userID"`
+		Token     string     `json:"token"`
+		Name      JSONString `json:"name"`
+		ICEPhone  JSONString `json:"ICEPhone"`
+		Gender    JSONString `json:"gender"`
+		AvatarURL JSONString `json:"avatarURL"`
+		Bio       JSONString `json:"bio"`
+	}{}
+
+	if err := unmarshalJSONBody(r, &req); err != nil {
+		handleError(w, r, req, err, s)
+		return
+	}
+
+	req.UserID = mux.Vars(r)[keyUserID]
+
+	var err error
+	if req.Token, err = getToken(r); err != nil {
+		handleError(w, r, req, err, s)
+		return
+	}
+
+	usr, err := s.usrs.Update(req.Token, user.UserUpdate{
+		UserID:    req.UserID,
+		Name:      req.Name.ToStringUpdate(),
+		ICEPhone:  req.ICEPhone.ToStringUpdate(),
+		Gender:    req.Gender.ToStringUpdate(),
+		AvatarURL: req.AvatarURL.ToStringUpdate(),
+		Bio:       req.Bio.ToStringUpdate(),
+	})
+	s.respondJsonOn(w, r, req, NewUser(usr), http.StatusOK, err, s.usrs)
 }
 
 /**
@@ -146,14 +192,40 @@ func (s *handler) handleUserUpdate(w http.ResponseWriter, r *http.Request) {
  * 		the user should have been updated. If the userID exists but the update
  *		date is earlier than this value then a 404 will be returned.
  *
- * @apiSuccess (200) {JSON} body  Updated <a href="#api-Objects-User">user</a> object
+ * @apiUse User200
  *
  */
 func (s *handler) handleGetUser(w http.ResponseWriter, r *http.Request) {
+	req := struct {
+		UserID           string `json:"userID"`
+		Token            string `json:"token"`
+		OffsetUpdateDate string `json:"offsetUpdateDate"`
+	}{
+		UserID:           mux.Vars(r)[keyUserID],
+		OffsetUpdateDate: r.URL.Query().Get(keyOffsetUpdateDate),
+	}
+
+	var err error
+	if req.Token, err = getToken(r); err != nil {
+		handleError(w, r, req, err, s)
+		return
+	}
+
+	oud := time.Time{}
+	if req.OffsetUpdateDate != "" {
+		if oud, err = time.Parse(time.RFC3339, req.OffsetUpdateDate); err != nil {
+			err = errors.NewClientf("invalid offsetUpdateDate: %v", err)
+			handleError(w, r, req, err, s)
+			return
+		}
+	}
+
+	usr, err := s.usrs.User(req.Token, req.UserID, oud)
+	s.respondJsonOn(w, r, req, NewUser(usr), http.StatusOK, err, s.usrs)
 }
 
 /**
- * @api {POST} /ratings/users/{userID} RateUser
+ * @api {POST} /ratings/users/{forUserID} RateUser
  * @apiName Rate a user
  * @apiVersion 0.1.0
  * @apiGroup Service
@@ -161,16 +233,37 @@ func (s *handler) handleGetUser(w http.ResponseWriter, r *http.Request) {
  * @apiHeader x-api-key the api key
  * @apiHeader Authorization Bearer token containing auth token e.g. "Bearer [value.of.jwt]"
  *
- * @apiParam (URL Param) {String} [userID] ID of the user to rate (ratee).
+ * @apiParam (URL Param) {String} [forUserID] ID of the user to rate (ratee).
  *
- * @apiParam (JSON Body) {String} byUserID ID of the user rating (rater).
- * @apiParam (JSON Body) {Integer{0-5}} rating The rating awarded by rater to ratee.
- * @apiParam (JSON Body) {String} [comment] Comment provided by rater.
+ * @apiParam (JSON Request Body) {Integer{0-5}} rating The rating awarded by rater to ratee.
+ * @apiParam (JSON Request Body) {String} [comment] Comment provided by rater.
  *
- * @apiSuccess (200) 200
+ * @apiSuccess (200 Response) nil an empty body
  *
  */
 func (s *handler) handleRateUser(w http.ResponseWriter, r *http.Request) {
+	req := struct {
+		Token     string `json:"token"`
+		ForUserID string `json:"forUserID"`
+		Rating    int32  `json:"rating"`
+		Comment   string `json:"comment"`
+	}{}
+
+	if err := unmarshalJSONBody(r, &req); err != nil {
+		handleError(w, r, req, err, s)
+		return
+	}
+
+	req.ForUserID = mux.Vars(r)[keyUserID]
+
+	var err error
+	if req.Token, err = getToken(r); err != nil {
+		handleError(w, r, req, err, s)
+		return
+	}
+
+	err = s.rater.RateUser(req.Token, req.ForUserID, req.Token, req.Rating)
+	s.respondJsonOn(w, r, req, nil, http.StatusCreated, err, s.rater)
 }
 
 /**
@@ -185,15 +278,50 @@ func (s *handler) handleRateUser(w http.ResponseWriter, r *http.Request) {
  * @apiParam (URL Param) {String} [forUserID] Filter ratings by ratee's userID.
  *		At least one of forUserID or byUserID must be provided.
  *
- * @apiParam (URL Query) {Integer} [offset=0] Index from which to fetch ratings (inclusive).
- * @apiParam (URL Query) {Integer} [count=10] Number of ratings to fetch.
  * @apiParam (URL Query) {String} [byUserID] Filter ratings by rater's userID.
  *		At least one of forUserID or byUserID must be provided.
+ * @apiUse OffsetCount
  *
- * @apiSuccess (200) {JSON} body Array of <a href="#api-Objects-Rating">ratings</a>.
+ * @apiUse RatingsList200
  *
  */
 func (s *handler) handleGetRatings(w http.ResponseWriter, r *http.Request) {
+	URLQ := r.URL.Query()
+	req := struct {
+		ForUserID string `json:"forUserID"`
+		ByUserID  string `json:"byUserID"`
+		Token     string `json:"token"`
+		Offset    int64  `json:"offset"`
+		Count     int32  `json:"count"`
+	}{
+		ForUserID: mux.Vars(r)[keyForUserID],
+		ByUserID:  URLQ.Get(keyByUserID),
+	}
+
+	var err error
+
+	if req.Token, err = getToken(r); err != nil {
+		handleError(w, r, req, err, s)
+		return
+	}
+
+	if req.Offset, err = getOffset(URLQ); err != nil {
+		handleError(w, r, req, err, s)
+		return
+	}
+
+	if req.Count, err = getCount(URLQ); err != nil {
+		handleError(w, r, req, err, s)
+		return
+	}
+
+	rtngs, err := s.rater.Ratings(req.Token, rating.Filter{
+		ForUserID: req.ForUserID,
+		ByUserID:  req.ByUserID,
+		Offset:    req.Offset,
+		Count:     req.Count,
+	})
+	s.respondJsonOn(w, r, req, NewRatings(rtngs), http.StatusOK, err, s.rater)
 }
 
 func (s handler) handleNotFound(w http.ResponseWriter, r *http.Request) {
@@ -282,4 +410,71 @@ func handleError(w http.ResponseWriter, r *http.Request, reqData interface{}, er
 		Error(err)
 	http.Error(w, "Something wicked happened, please try again later",
 		http.StatusInternalServerError)
+}
+
+func unmarshalJSONBody(r *http.Request, into interface{}) error {
+
+	bodyB, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return errors.NewClientf("unable to read request body: %v", err)
+	}
+	defer r.Body.Close()
+
+	if err := json.Unmarshal(bodyB, into); err != nil {
+		return errors.NewClientf("invalid request: %v", err)
+	}
+
+	return nil
+}
+
+func getToken(r *http.Request) (string, error) {
+
+	authHeaders := r.Header[keyAuthorization]
+	bearerPrefixLen := len(valBearerAuthPrefix)
+	for _, authHeader := range authHeaders {
+		if len(authHeader) <= bearerPrefixLen {
+			continue
+		}
+
+		if strings.HasPrefix(strings.ToLower(authHeader), valBearerAuthPrefix) {
+			return authHeader[bearerPrefixLen:], nil
+		}
+	}
+	return "", errors.NewUnauthorizedf("No %stoken was found among the %s headers",
+		valBearerAuthPrefix, keyAuthorization)
+}
+
+/**
+ * @apiDefine OffsetCount
+ *
+ * @apiParam (URL Query) {Integer} [offset=0] Index from which to fetch(inclusive).
+ * @apiParam (URL Query) {Integer} [count=10] Number of items to fetch.
+ */
+
+// getOffset extracts offset from r or returns 0 if not found. An error is
+// returned if the offset in r is not a valid int64.
+func getOffset(r url.Values) (int64, error) {
+	offsetStr := r.Get(keyOffset)
+	if offsetStr == "" {
+		return 0, nil
+	}
+	offset, err := strconv.ParseInt(offsetStr, 10, 64)
+	if err != nil {
+		return -1, errors.NewClientf("invalid offset provided: %v", err)
+	}
+	return offset, nil
+}
+
+// getCount extracts count from r or returns 10 if not found. An error is
+// returned if the offset in r is not a valid int32.
+func getCount(r url.Values) (int32, error) {
+	countStr := r.Get(keyCount)
+	if countStr == "" {
+		return 10, nil
+	}
+	count, err := strconv.ParseInt(countStr, 10, 32)
+	if err != nil {
+		return -1, errors.NewClientf("invalid count provided: %v", err)
+	}
+	return int32(count), nil
 }

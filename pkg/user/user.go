@@ -1,19 +1,18 @@
 package user
 
-type User struct {
-	ID        string
-	Name      string
-	ICEPhone  string
-	Gender    string
-	AvatarURL string
-	Bio       string
-	Rating    float32
-	NumRaters int64
-}
+import "time"
 
-type Int64Update struct {
-	IsUpdating bool
-	NewValue   int64
+type User struct {
+	ID          string
+	Name        string
+	ICEPhone    string
+	Gender      string
+	AvatarURL   string
+	Bio         string
+	Rating      float32
+	NumRaters   int64
+	Created     time.Time
+	LastUpdated time.Time
 }
 
 type StringUpdate struct {
@@ -21,12 +20,8 @@ type StringUpdate struct {
 	NewValue   string
 }
 
-type Float32Update struct {
-	IsUpdating bool
-	NewValue   float32
-}
-
 type UserUpdate struct {
+	UserID    string
 	Name      StringUpdate
 	ICEPhone  StringUpdate
 	Gender    StringUpdate

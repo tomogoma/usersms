@@ -3,6 +3,7 @@ package mocks
 import (
 	"github.com/tomogoma/go-typed-errors"
 	"github.com/tomogoma/usersms/pkg/user"
+	"time"
 )
 
 type User struct {
@@ -15,7 +16,7 @@ type User struct {
 
 	UsrRecTkn        string
 	UsrRecID         string
-	UsrRecOffstUpdDt string
+	UsrRecOffstUpdDt time.Time
 	UsrUsr           *user.User
 	UsrErr           error
 }
@@ -26,7 +27,7 @@ func (u *User) Update(token string, update user.UserUpdate) (*user.User, error) 
 	return u.UpdtUsr, u.UpdtErr
 }
 
-func (u *User) User(token, ID, offsetUpdateDate string) (*user.User, error) {
+func (u *User) User(token, ID string, offsetUpdateDate time.Time) (*user.User, error) {
 	u.UsrRecTkn = token
 	u.UsrRecID = ID
 	u.UsrRecOffstUpdDt = offsetUpdateDate

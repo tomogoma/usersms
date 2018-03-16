@@ -25,7 +25,7 @@ func main() {
 
 	serverRPCQuitCh := make(chan error)
 	rpcSrv, err := rpc.NewStatusHandler(deps.Guard, log)
-	logging.LogFatalOnError(log, err, "Instantate RPC handler")
+	logging.LogFatalOnError(log, err, "Instantiate RPC handler")
 	go serveRPC(deps.Config.Service, rpcSrv, serverRPCQuitCh)
 
 	serverHttpQuitCh := make(chan error)
