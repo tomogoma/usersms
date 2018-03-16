@@ -18,8 +18,8 @@ type DB interface {
 
 type JWTEr interface {
 	errors.IsAuthErrChecker
-	IsOwnerOrJWTHasAccess(JWT string, owner string, acl float32) (*jwt.Claim, error)
-	JWTValid(JWT string) (*jwt.Claim, error)
+	IsOwnerOrJWTHasAccess(JWT string, owner string, acl float32) (*jwt.AuthMSClaim, error)
+	JWTValid(JWT string) (*jwt.AuthMSClaim, error)
 }
 
 type FormatValidPhoner interface {

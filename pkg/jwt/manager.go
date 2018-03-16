@@ -42,7 +42,7 @@ func NewManager(opts ...Option) (*Manager, error) {
 	return &Manager{JWTEr: conf.jwter}, nil
 }
 
-func (v Manager) IsOwnerOrJWTHasAccess(JWT string, owner string, acl float32) (*Claim, error) {
+func (v Manager) IsOwnerOrJWTHasAccess(JWT string, owner string, acl float32) (*AuthMSClaim, error) {
 	clm, err := v.JWTValid(JWT)
 	if err != nil {
 		return nil, err
@@ -56,7 +56,7 @@ func (v Manager) IsOwnerOrJWTHasAccess(JWT string, owner string, acl float32) (*
 	return clm, nil
 }
 
-func (v Manager) JWTHasAccess(JWT string, acl float32) (*Claim, error) {
+func (v Manager) JWTHasAccess(JWT string, acl float32) (*AuthMSClaim, error) {
 	clm, err := v.JWTValid(JWT)
 	if err != nil {
 		return nil, err
@@ -67,24 +67,31 @@ func (v Manager) JWTHasAccess(JWT string, acl float32) (*Claim, error) {
 	return clm, nil
 }
 
-func (v Manager) JWTValid(JWT string) (*Claim, error) {
-	clm := &Claim{}
-	if _, err := v.JWTEr.Validate(JWT, clm); err != nil {
-		if v.JWTEr.IsUnauthorizedError(err) {
-			return nil, errors.NewUnauthorized(err)
-		}
-		if v.JWTEr.IsForbiddenError(err) {
-			return nil, errors.NewForbidden(err)
-		}
-		if v.JWTEr.IsAuthError(err) {
-			return nil, errors.NewAuth(err)
-		}
+func (v Manager) JWTValid(JWT string) (*AuthMSClaim, error) {
+	clm := &AuthMSClaim{}
+	if err := v.JWTValidOnClaim(JWT, clm); err != nil {
 		return nil, err
 	}
 	return clm, nil
 }
 
-func claimsHaveAccess(clms Claim, acl float32) error {
+func (v Manager) JWTValidOnClaim(JWT string, clm jwt.Claims) error {
+	if _, err := v.JWTEr.Validate(JWT, clm); err != nil {
+		if v.JWTEr.IsUnauthorizedError(err) {
+			return errors.NewUnauthorized(err)
+		}
+		if v.JWTEr.IsForbiddenError(err) {
+			return errors.NewForbidden(err)
+		}
+		if v.JWTEr.IsAuthError(err) {
+			return errors.NewAuth(err)
+		}
+		return err
+	}
+	return nil
+}
+
+func claimsHaveAccess(clms AuthMSClaim, acl float32) error {
 	if err := aclValid(acl); err != nil {
 		return err
 	}

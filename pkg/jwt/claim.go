@@ -20,16 +20,16 @@ type Group struct {
 	AccessLevel float32
 }
 
-type Claim struct {
+type AuthMSClaim struct {
 	UsrID string
 	Group Group
 	jwt.StandardClaims
 }
 
-func NewClaim(issuer, usrID string, g Group, validity time.Duration) *Claim {
+func NewClaim(issuer, usrID string, g Group, validity time.Duration) *AuthMSClaim {
 	issue := time.Now()
 	expiry := issue.Add(validity)
-	return &Claim{
+	return &AuthMSClaim{
 		UsrID: usrID,
 		Group: g,
 		StandardClaims: jwt.StandardClaims{
