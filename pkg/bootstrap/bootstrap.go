@@ -62,6 +62,10 @@ func Instantiate(confFile string, lg logging.Logger) Deps {
 
 	rater, err := rating.NewManager(tg, rdb, idGen)
 	logging.LogFatalOnError(lg, err, "New rating manager")
+	go func() {
+		err := rater.SyncUserRatings(conf.Ratings.SyncInterval)
+		logging.LogFatalOnError(lg, err, "Sync User Ratings Periodically")
+	}()
 
 	userMan, err := user.NewManager(rdb, tg, phone.Formatter{})
 	logging.LogFatalOnError(lg, err, "New user manager")

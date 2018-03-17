@@ -25,6 +25,12 @@ type Filter struct {
 	Count      int32
 }
 
+type AverageUser struct {
+	UserID    string
+	Rating    float32
+	NumRaters int64
+}
+
 func (f Filter) Validate() error {
 	if f.ForUserID == nil && f.ByUserID == nil {
 		return errors.NewClient("one of ForUserID or ByUserID must be provided")

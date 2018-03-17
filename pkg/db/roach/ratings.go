@@ -86,6 +86,42 @@ func (r *Roach) Ratings(f rating.Filter) ([]rating.Rating, error) {
 	return rts, nil
 }
 
+func (r *Roach) AverageUserRatings(offset int64, count int32) ([]rating.AverageUser, error) {
+
+	if err := r.InitDBIfNot(); err != nil {
+		return nil, err
+	}
+
+	cols := ColDesc(ColForUserID, "AVG("+ColRating+")", "COUNT("+ColRating+")")
+	limit, args := queries.Pagination(offset, int64(count), []interface{}{})
+	q := `SELECT ` + cols + ` FROM ` + TblRatings + ` GROUP BY ` + ColForUserID + ` ` + limit
+
+	rows, err := r.db.Query(q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var trs []rating.AverageUser
+	for rows.Next() {
+		tr := rating.AverageUser{}
+		err := rows.Scan(&tr.UserID, &tr.Rating, &tr.NumRaters)
+		if err != nil {
+			return nil, errors.Newf("scan row in result set: %v", err)
+		}
+		trs = append(trs, tr)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, errors.Newf("iterating result set: %v", err)
+	}
+
+	if len(trs) == 0 {
+		return nil, errors.NewNotFound("no user ratings found in range")
+	}
+
+	return trs, nil
+}
+
 // scanUser extracts a rating from s or returns an error if reported by s.
 // The column order for s must be same order as allRatingCols variable.
 func scanRating(s multiScanner) (*rating.Rating, error) {

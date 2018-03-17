@@ -83,3 +83,9 @@ database:
   # sslrootcert - The location of the root certificate file. The file must
   # contain PEM encoded data.
   sslRootCert: /etc/cockroachdb/certs/ca.crt
+
+# ratings contains configuration values for handling ratings.
+ratings:
+  # syncInterval - duration between synchronization of user rating with actual
+  # ratings provided in the format hms e.g. 4h5m6s
+  syncInterval: 5m

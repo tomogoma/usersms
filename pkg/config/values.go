@@ -17,12 +17,14 @@ type Service struct {
 	AuthTokenKeyFile   string        `json:"authTokenKeyFile" yaml:"authTokenKeyFile"`
 }
 
-type Auth struct {
+type Ratings struct {
+	SyncInterval time.Duration `json:"syncInterval" yaml:"syncInterval"`
 }
 
 type General struct {
 	Service  Service     `json:"serviceConfig,omitempty" yaml:"serviceConfig"`
 	Database crdb.Config `json:"database,omitempty" yaml:"database"`
+	Ratings  Ratings     `json:"ratings" yaml:"ratings"`
 }
 
 func ReadFile(fName string) (conf General, err error) {

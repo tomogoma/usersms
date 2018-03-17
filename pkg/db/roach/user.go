@@ -50,6 +50,17 @@ func (r *Roach) UpsertUser(uu user.UserUpdate) (*user.User, error) {
 	return usr, nil
 }
 
+func (r *Roach) UpdateUserRating(userID string, newRating float32, numRaters int64) error {
+	if err := r.InitDBIfNot(); err != nil {
+		return err
+	}
+
+	cols := ColDesc(ColRating, ColNumRaters)
+	q := `UPDATE ` + TblUsers + ` SET (` + cols + `) = ($1, $2) WHERE ` + ColID + `=$3`
+	res, err := r.db.Exec(q, newRating, numRaters, userID)
+	return checkRowsAffected(res, err, 1)
+}
+
 func (r *Roach) User(userID string, offsetUpdateDate time.Time) (*user.User, error) {
 	if err := r.InitDBIfNot(); err != nil {
 		return nil, err

@@ -7,6 +7,8 @@ import (
 	jwtH "github.com/tomogoma/usersms/pkg/jwt"
 )
 
+const perQDBFetch = 100
+
 type JWTEr interface {
 	errors.IsAuthErrChecker
 	JWTValidOnClaim(JWT string, clm jwt.Claims) error
@@ -22,6 +24,8 @@ type DB interface {
 	SaveRating(rating Rating) error
 	Rating(byUserID, forSection, forUserID string) (*Rating, error)
 	Ratings(Filter) ([]Rating, error)
+	AverageUserRatings(offset int64, count int32) ([]AverageUser, error)
+	UpdateUserRating(userID string, newRating float32, numRaters int64) error
 }
 
 type Manager struct {
@@ -45,11 +49,30 @@ func NewManager(jwter JWTEr, db DB, idGen IDEr) (*Manager, error) {
 	return &Manager{jwter: jwter, db: db, idgen: idGen}, nil
 }
 
+func (m *Manager) SyncUserRatings(every time.Duration) error {
+	for {
+		start := time.Now()
+		if err := m.syncUserRatings(); err != nil {
+			return err
+		}
+		end := time.Now()
+
+		syncDur := end.Sub(start)
+		if syncDur < every {
+			time.Sleep(every - syncDur)
+		}
+	}
+}
+
 func (m *Manager) RateUser(JWT, forUserID, comment string, rating int32) error {
 
 	clm, err := m.jwtCanRate(JWT)
 	if err != nil {
 		return err
+	}
+
+	if err := ratingValid(rating); err != nil {
+		return errors.NewClient(err)
 	}
 
 	_, err = m.db.Rating(clm.ByUsrID, clm.ForSection, forUserID)
@@ -113,4 +136,30 @@ func (m *Manager) parseJWTErError(err error, errCtx string) error {
 		return errors.NewForbidden(err)
 	}
 	return errors.Newf("%s: %v", errCtx, err)
+}
+
+func (m *Manager) syncUserRatings() error {
+	for currOffset := int64(0); ; currOffset += perQDBFetch {
+		aurs, err := m.db.AverageUserRatings(currOffset, perQDBFetch)
+		if err != nil {
+			if m.db.IsNotFoundError(err) {
+				return nil
+			}
+			return errors.Newf("fetch users (offset %d, count %d): %v",
+				currOffset, perQDBFetch, err)
+		}
+		for _, aur := range aurs {
+			err := m.db.UpdateUserRating(aur.UserID, aur.Rating, aur.NumRaters)
+			if err != nil {
+				return errors.Newf("update user rating: %v", err)
+			}
+		}
+	}
+}
+
+func ratingValid(rating int32) error {
+	if rating > 5 || rating < 1 {
+		return errors.Newf("rating must be in 1 <= rating <= 5")
+	}
+	return nil
 }
