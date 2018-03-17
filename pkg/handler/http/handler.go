@@ -57,6 +57,7 @@ const (
 	keyCount            = "count"
 	keyByUserID         = "byUserID"
 	keyForUserID        = "forUserID"
+	keyForSection       = "forSection"
 
 	valBearerAuthPrefix = "bearer "
 
@@ -281,6 +282,8 @@ func (s *handler) handleRateUser(w http.ResponseWriter, r *http.Request) {
  *
  * @apiParam (URL Query) {String} [byUserID] Filter ratings by rater's userID.
  *		At least one of forUserID or byUserID must be provided.
+ * @apiParam (URL Query) {String} [forSection] Filter ratings by section which
+ * 		ratee was rated.
  * @apiUse OffsetCount
  *
  * @apiUse RatingsList200
@@ -289,14 +292,16 @@ func (s *handler) handleRateUser(w http.ResponseWriter, r *http.Request) {
 func (s *handler) handleGetRatings(w http.ResponseWriter, r *http.Request) {
 	URLQ := r.URL.Query()
 	req := struct {
-		ForUserID string `json:"forUserID"`
-		ByUserID  string `json:"byUserID"`
-		Token     string `json:"token"`
-		Offset    int64  `json:"offset"`
-		Count     int32  `json:"count"`
+		ForSection string `json:"forSection"`
+		ForUserID  string `json:"forUserID"`
+		ByUserID   string `json:"byUserID"`
+		Token      string `json:"token"`
+		Offset     int64  `json:"offset"`
+		Count      int32  `json:"count"`
 	}{
-		ForUserID: mux.Vars(r)[keyForUserID],
-		ByUserID:  URLQ.Get(keyByUserID),
+		ForUserID:  mux.Vars(r)[keyForUserID],
+		ByUserID:   URLQ.Get(keyByUserID),
+		ForSection: URLQ.Get(keyForSection),
 	}
 
 	var err error
@@ -317,10 +322,11 @@ func (s *handler) handleGetRatings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rtngs, err := s.rater.Ratings(req.Token, rating.Filter{
-		ForUserID: queries.NewComparisonString(queries.OpET, req.ForUserID),
-		ByUserID:  queries.NewComparisonString(queries.OpET, req.ByUserID),
-		Offset:    req.Offset,
-		Count:     req.Count,
+		ForUserID:  queries.NewComparisonString(queries.OpET, req.ForUserID),
+		ByUserID:   queries.NewComparisonString(queries.OpET, req.ByUserID),
+		ForSection: queries.NewComparisonString(queries.OpET, req.ForSection),
+		Offset:     req.Offset,
+		Count:      req.Count,
 	})
 	s.respondJsonOn(w, r, req, NewRatings(rtngs), http.StatusOK, err, s.rater)
 }
