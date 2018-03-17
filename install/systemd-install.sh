@@ -44,5 +44,6 @@ cp -f ../bin/app "${INSTALL_FILE}" || exit 1
 printUnitFile
 systemctl enable "${UNIT_NAME}"
 systemctl daemon-reload
+systemctl start "${UNIT_NAME}"
 
 printDetails
