@@ -52,7 +52,7 @@ const (
 	CREATE TABLE IF NOT EXISTS ` + TblUsers + ` (
 		` + ColID + ` VARCHAR(56) PRIMARY KEY CHECK (` + ColID + ` != ''),
 		` + ColName + ` VARCHAR(256) NOT NULL CHECK (` + ColName + ` != ''),
-		` + ColGender + ` VARCHAR(16) PRIMARY KEY CHECK (` + ColGender + ` IN ('MALE', 'FEMALE', 'OTHER')),
+		` + ColGender + ` VARCHAR(16) NOT NULL KEY CHECK (` + ColGender + ` IN ('MALE', 'FEMALE', 'OTHER')),
 		` + ColICEPhone + ` VARCHAR(24),
 		` + ColAvatarURL + ` VARCHAR(256),
 		` + ColBio + ` TEXT,
