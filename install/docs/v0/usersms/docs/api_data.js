@@ -45,6 +45,13 @@ define({ "api": [
           },
           {
             "group": "URL Query",
+            "type": "String",
+            "optional": true,
+            "field": "forSection",
+            "description": "<p>Filter ratings by section which ratee was rated.</p>"
+          },
+          {
+            "group": "URL Query",
             "type": "Integer",
             "optional": true,
             "field": "offset",
