@@ -7,6 +7,9 @@ import (
 	"github.com/tomogoma/usersms/pkg/db/queries"
 )
 
+var allRatingCols = ColDesc(ColID, ColForSection, ColForUserID, ColByUserID,
+	ColRating, ColComment, ColCreated, ColLastUpdated)
+
 func (r *Roach) SaveRating(rt rating.Rating) error {
 	if err := r.InitDBIfNot(); err != nil {
 		return err
@@ -25,10 +28,8 @@ func (r *Roach) Rating(byUserID, forSection, forUserID string) (*rating.Rating, 
 		return nil, err
 	}
 
-	cols := ColDesc(ColID, ColForSection, ColForUserID, ColByUserID, ColRating,
-		ColComment, ColCreated, ColLastUpdated)
 	q := `
-		SELECT ` + cols + ` FROM ` + TblRatings + `
+		SELECT ` + allRatingCols + ` FROM ` + TblRatings + `
 			WHERE ` + ColByUserID + `=$1
 				AND ` + ColForSection + `=$2
 				AND ` + ColForUserID + `=$3
@@ -59,10 +60,7 @@ func (r *Roach) Ratings(f rating.Filter) ([]rating.Rating, error) {
 
 	limit, args := queries.Pagination(f.Offset, int64(f.Count), args)
 
-	cols := ColDesc(ColID, ColForSection, ColForUserID, ColByUserID, ColRating,
-		ColComment, ColCreated, ColLastUpdated)
-
-	q := `SELECT ` + cols + ` FROM ` + TblRatings + ` WHERE ` + where + ` ` + limit
+	q := `SELECT ` + allRatingCols + ` FROM ` + TblRatings + ` WHERE ` + where + ` ` + limit
 	rows, err := r.db.Query(q, args...)
 	if err != nil {
 		return nil, err
@@ -88,6 +86,8 @@ func (r *Roach) Ratings(f rating.Filter) ([]rating.Rating, error) {
 	return rts, nil
 }
 
+// scanUser extracts a rating from s or returns an error if reported by s.
+// The column order for s must be same order as allRatingCols variable.
 func scanRating(s multiScanner) (*rating.Rating, error) {
 	rt := &rating.Rating{}
 	comment := sql.NullString{}
