@@ -32,6 +32,19 @@ type Manager struct {
 	idgen IDEr
 }
 
+func NewManager(jwter JWTEr, db DB, idGen IDEr) (*Manager, error) {
+	if jwter == nil {
+		return nil, errors.Newf("nil JWTEr")
+	}
+	if db == nil {
+		return nil, errors.Newf("nil DB")
+	}
+	if idGen == nil {
+		return nil, errors.Newf("nil IDEr")
+	}
+	return &Manager{jwter: jwter, db: db, idgen: idGen}, nil
+}
+
 func (m *Manager) RateUser(JWT, forUserID, comment string, rating int32) error {
 
 	clm, err := m.jwtCanRate(JWT)
