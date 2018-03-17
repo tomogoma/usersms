@@ -14,8 +14,8 @@ func (r *Roach) InsertAPIKey(userID string, key []byte) (apiG.Key, error) {
 		return nil, err
 	}
 	k := api.Key{UserID: userID, Val: key}
-	insCols := ColDesc(ColUserID, ColKey, ColUpdateDate)
-	retCols := ColDesc(ColID, ColCreateDate, ColUpdateDate)
+	insCols := ColDesc(ColUserID, ColKey, ColLastUpdated)
+	retCols := ColDesc(ColID, ColCreated, ColLastUpdated)
 	q := `
 		INSERT INTO ` + TblAPIKeys + ` (` + insCols + `)
 			VALUES ($1, $2, CURRENT_TIMESTAMP)
@@ -32,7 +32,7 @@ func (r *Roach) APIKeyByUserIDVal(userID string, key []byte) (apiG.Key, error) {
 	if err := r.InitDBIfNot(); err != nil {
 		return nil, err
 	}
-	cols := ColDesc(ColID, ColUserID, ColKey, ColCreateDate, ColUpdateDate)
+	cols := ColDesc(ColID, ColUserID, ColKey, ColCreated, ColLastUpdated)
 	q := `
 	SELECT ` + cols + `
 		FROM ` + TblAPIKeys + `

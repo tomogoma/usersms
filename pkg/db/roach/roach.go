@@ -27,6 +27,10 @@ type Roach struct {
 	isDBInit      bool
 }
 
+type multiScanner interface {
+	Scan(...interface{}) error
+}
+
 const (
 	keyDBVersion = "db.version"
 )
@@ -123,8 +127,8 @@ func (r *Roach) setRunningVersionCurrent() error {
 	if err != nil {
 		return errors.Newf("marshal conf: %v", err)
 	}
-	cols := ColDesc(ColKey, ColValue, ColUpdateDate)
-	updCols := ColDesc(ColValue, ColUpdateDate)
+	cols := ColDesc(ColKey, ColValue, ColLastUpdated)
+	updCols := ColDesc(ColValue, ColLastUpdated)
 	q := `
 		INSERT INTO ` + TblConfigurations + ` (` + cols + `)
 			VALUES ($1, $2, CURRENT_TIMESTAMP)

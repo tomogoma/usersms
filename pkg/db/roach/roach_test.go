@@ -116,8 +116,8 @@ func TestRoach_InitDBIfNot(t *testing.T) {
 		},
 	}
 
-	cols := roach.ColDesc(roach.ColKey, roach.ColValue, roach.ColUpdateDate)
-	updCols := roach.ColDesc(roach.ColValue, roach.ColUpdateDate)
+	cols := roach.ColDesc(roach.ColKey, roach.ColValue, roach.ColLastUpdated)
+	updCols := roach.ColDesc(roach.ColValue, roach.ColLastUpdated)
 	upsertQ := `
 		INSERT INTO ` + roach.TblConfigurations + ` (` + cols + `)
 			VALUES ('db.version', $1, CURRENT_TIMESTAMP)
