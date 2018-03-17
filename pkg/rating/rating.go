@@ -7,19 +7,21 @@ import (
 
 type Rating struct {
 	ID          string
+	ForSection  string
 	ForUserID   string
 	ByUserID    string
-	Comment     string
 	Rating      int32
+	Comment     string
 	Created     time.Time
 	LastUpdated time.Time
 }
 
 type Filter struct {
-	ForUserID string
-	ByUserID  string
-	Offset    int64
-	Count     int32
+	ForSection string
+	ForUserID  string
+	ByUserID   string
+	Offset     int64
+	Count      int32
 }
 
 func (f Filter) Validate() error {

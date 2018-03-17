@@ -5,8 +5,8 @@ import "time"
 type User struct {
 	ID          string
 	Name        string
-	ICEPhone    string
 	Gender      string
+	ICEPhone    string
 	AvatarURL   string
 	Bio         string
 	Rating      float32

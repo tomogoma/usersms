@@ -13,9 +13,13 @@ type JWTEr interface {
 	JWTValid(JWT string) (*jwtH.AuthMSClaim, error)
 }
 
+type IDEr interface {
+	NextID() (string, error)
+}
+
 type DB interface {
 	errors.IsNotFoundErrChecker
-	SaveRating(rating Rating) (string, error)
+	SaveRating(rating Rating) error
 	Rating(byUserID, forSection, forUserID string) (*Rating, error)
 	Ratings(Filter) ([]Rating, error)
 }
@@ -25,6 +29,7 @@ type Manager struct {
 
 	jwter JWTEr
 	db    DB
+	idgen IDEr
 }
 
 func (m *Manager) RateUser(JWT, forUserID, comment string, rating int32) error {
@@ -42,9 +47,15 @@ func (m *Manager) RateUser(JWT, forUserID, comment string, rating int32) error {
 		return errors.Newf("")
 	}
 
+	ID, err := m.idgen.NextID()
+	if err != nil {
+		return errors.Newf("generate ID: %v", err)
+	}
+
 	now := time.Now()
-	_, err = m.db.SaveRating(Rating{ForUserID: forUserID, ByUserID: clm.ByUsrID,
-		Comment: comment, Rating: rating, Created: now, LastUpdated: now})
+	err = m.db.SaveRating(Rating{ID: ID, ForSection: clm.ForSection,
+		ForUserID: forUserID, ByUserID: clm.ByUsrID, Rating: rating,
+		Comment: comment, Created: now, LastUpdated: now})
 	if err != nil {
 		return errors.Newf("save rating: %v", err)
 	}
