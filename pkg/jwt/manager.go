@@ -13,7 +13,6 @@ type JWTEr interface {
 }
 
 type Manager struct {
-	errors.AuthErrCheck
 	JWTEr
 }
 
