@@ -18,6 +18,7 @@ import (
 	"time"
 	"net/url"
 	"strconv"
+	"github.com/tomogoma/usersms/pkg/db/queries"
 )
 
 type contextKey string
@@ -316,8 +317,8 @@ func (s *handler) handleGetRatings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rtngs, err := s.rater.Ratings(req.Token, rating.Filter{
-		ForUserID: req.ForUserID,
-		ByUserID:  req.ByUserID,
+		ForUserID: queries.NewComparisonString(queries.OpET, req.ForUserID),
+		ByUserID:  queries.NewComparisonString(queries.OpET, req.ByUserID),
 		Offset:    req.Offset,
 		Count:     req.Count,
 	})

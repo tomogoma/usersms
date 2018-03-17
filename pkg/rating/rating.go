@@ -3,6 +3,7 @@ package rating
 import (
 	"time"
 	"github.com/tomogoma/go-typed-errors"
+	"github.com/tomogoma/usersms/pkg/db/queries"
 )
 
 type Rating struct {
@@ -17,15 +18,15 @@ type Rating struct {
 }
 
 type Filter struct {
-	ForSection string
-	ForUserID  string
-	ByUserID   string
+	ForSection *queries.Comparison
+	ForUserID  *queries.Comparison
+	ByUserID   *queries.Comparison
 	Offset     int64
 	Count      int32
 }
 
 func (f Filter) Validate() error {
-	if f.ForUserID == "" && f.ByUserID == "" {
+	if f.ForUserID == nil && f.ByUserID == nil {
 		return errors.NewClient("one of ForUserID or ByUserID must be provided")
 	}
 	if f.Offset < 0 {
