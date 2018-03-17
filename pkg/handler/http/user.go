@@ -13,7 +13,7 @@ import (
  * @apiSuccess (200 JSON Response) {String="MALE","FEMALE","OTHER"} gender
  * @apiSuccess (200 JSON Response) {String} avatarURL User's profile picture URL.
  * @apiSuccess (200 JSON Response) {String} bio Brief description of user.
- * @apiSuccess (200 JSON Response) {Float{0-5}} rating Overall rating of user.
+ * @apiSuccess (200 JSON Response) {Float{1-5}} rating Overall rating of user.
  * @apiSuccess (200 JSON Response) {String} created ISO8601 date of user profile creation.
  * @apiSuccess (200 JSON Response) {String} lastUpdated last ISO8601 date when this profile was updated.
  */

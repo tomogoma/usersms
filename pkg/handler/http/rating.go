@@ -13,7 +13,7 @@ import (
  * @apiSuccess (200 JSON Response) {String} ratings.forUserID Ratee' userID.
  * @apiSuccess (200 JSON Response) {String} ratings.byUserID Rater's userID.
  * @apiSuccess (200 JSON Response) {String} ratings.comment
- * @apiSuccess (200 JSON Response) {Integer{0-5}} ratings.rating Rating awarded by rater to ratee.
+ * @apiSuccess (200 JSON Response) {Integer{1-5}} ratings.rating Rating awarded by rater to ratee.
  * @apiSuccess (200 JSON Response) {String} ratings.created ISO8601 date of rating creation.
  * @apiSuccess (200 JSON Response) {String} ratings.lastUpdated Last ISO8601 date of update.
  */

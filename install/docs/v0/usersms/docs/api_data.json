@@ -112,7 +112,7 @@
           {
             "group": "200 JSON Response",
             "type": "Integer",
-            "size": "0-5",
+            "size": "1-5",
             "optional": false,
             "field": "ratings.rating",
             "description": "<p>Rating awarded by rater to ratee.</p>"
@@ -237,7 +237,7 @@
           {
             "group": "200 JSON Response",
             "type": "Float",
-            "size": "0-5",
+            "size": "1-5",
             "optional": false,
             "field": "rating",
             "description": "<p>Overall rating of user.</p>"
@@ -300,7 +300,7 @@
           {
             "group": "JSON Request Body",
             "type": "Integer",
-            "size": "0-5",
+            "size": "1-5",
             "optional": false,
             "field": "rating",
             "description": "<p>The rating awarded by rater to ratee.</p>"
@@ -513,7 +513,7 @@
           {
             "group": "200 JSON Response",
             "type": "Float",
-            "size": "0-5",
+            "size": "1-5",
             "optional": false,
             "field": "rating",
             "description": "<p>Overall rating of user.</p>"

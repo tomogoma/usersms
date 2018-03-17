@@ -237,7 +237,7 @@ func (s *handler) handleGetUser(w http.ResponseWriter, r *http.Request) {
  *
  * @apiParam (URL Param) {String} [forUserID] ID of the user to rate (ratee).
  *
- * @apiParam (JSON Request Body) {Integer{0-5}} rating The rating awarded by rater to ratee.
+ * @apiParam (JSON Request Body) {Integer{1-5}} rating The rating awarded by rater to ratee.
  * @apiParam (JSON Request Body) {String} [comment] Comment provided by rater.
  *
  * @apiSuccess (200 Response) nil an empty body
