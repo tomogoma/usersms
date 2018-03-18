@@ -13,6 +13,12 @@ const (
 	VersionFull = "0.1.0" // Use http://semver.org standards
 	Description = "User profile management micro-service"
 
+	// be sure to run micro with the new namespace after changing this e.g.
+	//     $micro api --namespace=new.namespace.value ...
+	// or set the environment value.
+	// Docs here: https://micro.mu/docs/api.html#set-namespace
+	Namespace = "go.micro.api"
+
 	RPCNamePrefix = ""
 
 	TimeFormat = time.RFC3339
@@ -41,7 +47,7 @@ func VersionMajorPrefixed() string {
 }
 
 func WebNamePrefix() string {
-	return "go.micro.api." + VersionMajorPrefixed() + "."
+	return Namespace + "." + VersionMajorPrefixed() + "."
 }
 
 func WebRootPath() string {
