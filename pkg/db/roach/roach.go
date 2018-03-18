@@ -72,9 +72,12 @@ func (r *Roach) ExecuteTx(fn func(*sql.Tx) error) error {
 func ColDesc(cols ...string) string {
 	desc := ""
 	for _, col := range cols {
-		desc = desc + col + ","
+		if col == "" {
+			continue
+		}
+		desc = desc + col + ", "
 	}
-	return strings.TrimSuffix(desc, ",")
+	return strings.TrimSuffix(desc, ", ")
 }
 
 func (r *Roach) instantiate() error {
