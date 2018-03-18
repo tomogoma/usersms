@@ -1,5 +1,28 @@
 define({ "api": [
   {
+    "type": "get",
+    "url": "/docs",
+    "title": "Docs",
+    "name": "Docs",
+    "version": "0.1.0",
+    "group": "Service",
+    "success": {
+      "fields": {
+        "200": [
+          {
+            "group": "200",
+            "type": "html",
+            "optional": false,
+            "field": "docs",
+            "description": "<p>Docs page to be viewed on browser.</p>"
+          }
+        ]
+      }
+    },
+    "filename": "pkg/handler/http/handler.go",
+    "groupTitle": "Service"
+  },
+  {
     "type": "GET",
     "url": "/ratings/users/{forUserID}",
     "title": "GetRatingsOnUser",

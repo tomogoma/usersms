@@ -10,15 +10,15 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/tomogoma/go-typed-errors"
 	"github.com/tomogoma/usersms/pkg/config"
+	"github.com/tomogoma/usersms/pkg/db/queries"
 	"github.com/tomogoma/usersms/pkg/logging"
-	"github.com/tomogoma/usersms/pkg/user"
 	"github.com/tomogoma/usersms/pkg/rating"
+	"github.com/tomogoma/usersms/pkg/user"
 	"io/ioutil"
-	"strings"
-	"time"
 	"net/url"
 	"strconv"
-	"github.com/tomogoma/usersms/pkg/db/queries"
+	"strings"
+	"time"
 )
 
 type contextKey string
@@ -86,15 +86,13 @@ func NewHandler(conf Config) (http.Handler, error) {
 }
 
 func (s handler) handleRoute(r *mux.Router) {
-
-	r.PathPrefix("/status").
-		Methods(http.MethodGet).
-		HandlerFunc(s.guardChain(s.handleStatus))
-
-	r.PathPrefix("/" + config.DocsPath).
-		Handler(http.FileServer(http.Dir(config.DefaultDocsDir())))
-
-	r.NotFoundHandler = http.HandlerFunc(s.prepLogger(s.handleNotFound))
+	s.handleStatus(r)
+	s.handleUserUpdate(r)
+	s.handleGetUser(r)
+	s.handleRateUser(r)
+	s.handleGetRatings(r)
+	s.handleDocs(r)
+	s.handleNotFound(r)
 }
 
 /**
@@ -111,18 +109,24 @@ func (s handler) handleRoute(r *mux.Router) {
  * @apiSuccess (200)  {String} canonicalName Canonical name of the micro-service.
  *
  */
-func (s *handler) handleStatus(w http.ResponseWriter, r *http.Request) {
-	s.respondJsonOn(w, r, nil, struct {
-		Name          string `json:"name"`
-		Version       string `json:"version"`
-		Description   string `json:"description"`
-		CanonicalName string `json:"canonicalName"`
-	}{
-		Name:          config.Name,
-		Version:       config.VersionFull,
-		Description:   config.Description,
-		CanonicalName: config.CanonicalWebName(),
-	}, http.StatusOK, nil, s)
+func (s *handler) handleStatus(r *mux.Router) {
+	r.Methods(http.MethodGet).
+		PathPrefix("/status").
+		HandlerFunc(
+			s.guardChain(func(w http.ResponseWriter, r *http.Request) {
+				s.respondJsonOn(w, r, nil, struct {
+					Name          string `json:"name"`
+					Version       string `json:"version"`
+					Description   string `json:"description"`
+					CanonicalName string `json:"canonicalName"`
+				}{
+					Name:          config.Name,
+					Version:       config.VersionFull,
+					Description:   config.Description,
+					CanonicalName: config.CanonicalWebName(),
+				}, http.StatusOK, nil, s)
+			}),
+		)
 }
 
 /**
@@ -144,39 +148,45 @@ func (s *handler) handleStatus(w http.ResponseWriter, r *http.Request) {
  * @apiUse User200
  *
  */
-func (s *handler) handleUserUpdate(w http.ResponseWriter, r *http.Request) {
-	req := struct {
-		UserID    string     `json:"userID"`
-		Token     string     `json:"token"`
-		Name      JSONString `json:"name"`
-		ICEPhone  JSONString `json:"ICEPhone"`
-		Gender    JSONString `json:"gender"`
-		AvatarURL JSONString `json:"avatarURL"`
-		Bio       JSONString `json:"bio"`
-	}{}
+func (s *handler) handleUserUpdate(r *mux.Router) {
+	r.Methods(http.MethodPut).
+		PathPrefix("/users/{" + keyUserID + "}").
+		HandlerFunc(
+			s.guardChain(func(w http.ResponseWriter, r *http.Request) {
+				req := struct {
+					UserID    string     `json:"userID"`
+					Token     string     `json:"token"`
+					Name      JSONString `json:"name"`
+					ICEPhone  JSONString `json:"ICEPhone"`
+					Gender    JSONString `json:"gender"`
+					AvatarURL JSONString `json:"avatarURL"`
+					Bio       JSONString `json:"bio"`
+				}{}
 
-	if err := unmarshalJSONBody(r, &req); err != nil {
-		handleError(w, r, req, err, s)
-		return
-	}
+				if err := unmarshalJSONBody(r, &req); err != nil {
+					handleError(w, r, req, err, s)
+					return
+				}
 
-	req.UserID = mux.Vars(r)[keyUserID]
+				req.UserID = mux.Vars(r)[keyUserID]
 
-	var err error
-	if req.Token, err = getToken(r); err != nil {
-		handleError(w, r, req, err, s)
-		return
-	}
+				var err error
+				if req.Token, err = getToken(r); err != nil {
+					handleError(w, r, req, err, s)
+					return
+				}
 
-	usr, err := s.usrs.Update(req.Token, user.UserUpdate{
-		UserID:    req.UserID,
-		Name:      req.Name.ToStringUpdate(),
-		ICEPhone:  req.ICEPhone.ToStringUpdate(),
-		Gender:    req.Gender.ToStringUpdate(),
-		AvatarURL: req.AvatarURL.ToStringUpdate(),
-		Bio:       req.Bio.ToStringUpdate(),
-	})
-	s.respondJsonOn(w, r, req, NewUser(usr), http.StatusOK, err, s.usrs)
+				usr, err := s.usrs.Update(req.Token, user.UserUpdate{
+					UserID:    req.UserID,
+					Name:      req.Name.ToStringUpdate(),
+					ICEPhone:  req.ICEPhone.ToStringUpdate(),
+					Gender:    req.Gender.ToStringUpdate(),
+					AvatarURL: req.AvatarURL.ToStringUpdate(),
+					Bio:       req.Bio.ToStringUpdate(),
+				})
+				s.respondJsonOn(w, r, req, NewUser(usr), http.StatusOK, err, s.usrs)
+			}),
+		)
 }
 
 /**
@@ -197,33 +207,39 @@ func (s *handler) handleUserUpdate(w http.ResponseWriter, r *http.Request) {
  * @apiUse User200
  *
  */
-func (s *handler) handleGetUser(w http.ResponseWriter, r *http.Request) {
-	req := struct {
-		UserID           string `json:"userID"`
-		Token            string `json:"token"`
-		OffsetUpdateDate string `json:"offsetUpdateDate"`
-	}{
-		UserID:           mux.Vars(r)[keyUserID],
-		OffsetUpdateDate: r.URL.Query().Get(keyOffsetUpdateDate),
-	}
+func (s *handler) handleGetUser(r *mux.Router) {
+	r.Methods(http.MethodGet).
+		PathPrefix("/users/{" + keyUserID + "}").
+		HandlerFunc(
+			s.guardChain(func(w http.ResponseWriter, r *http.Request) {
+				req := struct {
+					UserID           string `json:"userID"`
+					Token            string `json:"token"`
+					OffsetUpdateDate string `json:"offsetUpdateDate"`
+				}{
+					UserID:           mux.Vars(r)[keyUserID],
+					OffsetUpdateDate: r.URL.Query().Get(keyOffsetUpdateDate),
+				}
 
-	var err error
-	if req.Token, err = getToken(r); err != nil {
-		handleError(w, r, req, err, s)
-		return
-	}
+				var err error
+				if req.Token, err = getToken(r); err != nil {
+					handleError(w, r, req, err, s)
+					return
+				}
 
-	oud := time.Time{}
-	if req.OffsetUpdateDate != "" {
-		if oud, err = time.Parse(time.RFC3339, req.OffsetUpdateDate); err != nil {
-			err = errors.NewClientf("invalid offsetUpdateDate: %v", err)
-			handleError(w, r, req, err, s)
-			return
-		}
-	}
+				oud := time.Time{}
+				if req.OffsetUpdateDate != "" {
+					if oud, err = time.Parse(time.RFC3339, req.OffsetUpdateDate); err != nil {
+						err = errors.NewClientf("invalid offsetUpdateDate: %v", err)
+						handleError(w, r, req, err, s)
+						return
+					}
+				}
 
-	usr, err := s.usrs.User(req.Token, req.UserID, oud)
-	s.respondJsonOn(w, r, req, NewUser(usr), http.StatusOK, err, s.usrs)
+				usr, err := s.usrs.User(req.Token, req.UserID, oud)
+				s.respondJsonOn(w, r, req, NewUser(usr), http.StatusOK, err, s.usrs)
+			}),
+		)
 }
 
 /**
@@ -243,29 +259,35 @@ func (s *handler) handleGetUser(w http.ResponseWriter, r *http.Request) {
  * @apiSuccess (200 Response) nil an empty body
  *
  */
-func (s *handler) handleRateUser(w http.ResponseWriter, r *http.Request) {
-	req := struct {
-		Token     string `json:"token"`
-		ForUserID string `json:"forUserID"`
-		Rating    int32  `json:"rating"`
-		Comment   string `json:"comment"`
-	}{}
+func (s *handler) handleRateUser(r *mux.Router) {
+	r.Methods(http.MethodPost).
+		PathPrefix("/ratings/users/{" + keyForUserID + "}").
+		HandlerFunc(
+			s.guardChain(func(w http.ResponseWriter, r *http.Request) {
+				req := struct {
+					Token     string `json:"token"`
+					ForUserID string `json:"forUserID"`
+					Rating    int32  `json:"rating"`
+					Comment   string `json:"comment"`
+				}{}
 
-	if err := unmarshalJSONBody(r, &req); err != nil {
-		handleError(w, r, req, err, s)
-		return
-	}
+				if err := unmarshalJSONBody(r, &req); err != nil {
+					handleError(w, r, req, err, s)
+					return
+				}
 
-	req.ForUserID = mux.Vars(r)[keyUserID]
+				req.ForUserID = mux.Vars(r)[keyForUserID]
 
-	var err error
-	if req.Token, err = getToken(r); err != nil {
-		handleError(w, r, req, err, s)
-		return
-	}
+				var err error
+				if req.Token, err = getToken(r); err != nil {
+					handleError(w, r, req, err, s)
+					return
+				}
 
-	err = s.rater.RateUser(req.Token, req.ForUserID, req.Token, req.Rating)
-	s.respondJsonOn(w, r, req, nil, http.StatusCreated, err, s.rater)
+				err = s.rater.RateUser(req.Token, req.ForUserID, req.Token, req.Rating)
+				s.respondJsonOn(w, r, req, nil, http.StatusCreated, err, s.rater)
+			}),
+		)
 }
 
 /**
@@ -289,50 +311,74 @@ func (s *handler) handleRateUser(w http.ResponseWriter, r *http.Request) {
  * @apiUse RatingsList200
  *
  */
-func (s *handler) handleGetRatings(w http.ResponseWriter, r *http.Request) {
-	URLQ := r.URL.Query()
-	req := struct {
-		ForSection string `json:"forSection"`
-		ForUserID  string `json:"forUserID"`
-		ByUserID   string `json:"byUserID"`
-		Token      string `json:"token"`
-		Offset     int64  `json:"offset"`
-		Count      int32  `json:"count"`
-	}{
-		ForUserID:  mux.Vars(r)[keyForUserID],
-		ByUserID:   URLQ.Get(keyByUserID),
-		ForSection: URLQ.Get(keyForSection),
-	}
+func (s *handler) handleGetRatings(r *mux.Router) {
+	r.Methods(http.MethodGet).
+		PathPrefix("/ratings/users/{" + keyForUserID + "}").
+		HandlerFunc(
+			s.guardChain(func(w http.ResponseWriter, r *http.Request) {
+				URLQ := r.URL.Query()
+				req := struct {
+					ForSection string `json:"forSection"`
+					ForUserID  string `json:"forUserID"`
+					ByUserID   string `json:"byUserID"`
+					Token      string `json:"token"`
+					Offset     int64  `json:"offset"`
+					Count      int32  `json:"count"`
+				}{
+					ForUserID:  mux.Vars(r)[keyForUserID],
+					ByUserID:   URLQ.Get(keyByUserID),
+					ForSection: URLQ.Get(keyForSection),
+				}
 
-	var err error
+				var err error
 
-	if req.Token, err = getToken(r); err != nil {
-		handleError(w, r, req, err, s)
-		return
-	}
+				if req.Token, err = getToken(r); err != nil {
+					handleError(w, r, req, err, s)
+					return
+				}
 
-	if req.Offset, err = getOffset(URLQ); err != nil {
-		handleError(w, r, req, err, s)
-		return
-	}
+				if req.Offset, err = getOffset(URLQ); err != nil {
+					handleError(w, r, req, err, s)
+					return
+				}
 
-	if req.Count, err = getCount(URLQ); err != nil {
-		handleError(w, r, req, err, s)
-		return
-	}
+				if req.Count, err = getCount(URLQ); err != nil {
+					handleError(w, r, req, err, s)
+					return
+				}
 
-	rtngs, err := s.rater.Ratings(req.Token, rating.Filter{
-		ForUserID:  queries.NewComparisonString(queries.OpET, req.ForUserID),
-		ByUserID:   queries.NewComparisonString(queries.OpET, req.ByUserID),
-		ForSection: queries.NewComparisonString(queries.OpET, req.ForSection),
-		Offset:     req.Offset,
-		Count:      req.Count,
-	})
-	s.respondJsonOn(w, r, req, NewRatings(rtngs), http.StatusOK, err, s.rater)
+				rtngs, err := s.rater.Ratings(req.Token, rating.Filter{
+					ForUserID:  queries.NewComparisonString(queries.OpET, req.ForUserID),
+					ByUserID:   queries.NewComparisonString(queries.OpET, req.ByUserID),
+					ForSection: queries.NewComparisonString(queries.OpET, req.ForSection),
+					Offset:     req.Offset,
+					Count:      req.Count,
+				})
+				s.respondJsonOn(w, r, req, NewRatings(rtngs), http.StatusOK, err, s.rater)
+			}),
+		)
 }
 
-func (s handler) handleNotFound(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "Nothing to see here", http.StatusNotFound)
+/**
+ * @api {get} /docs Docs
+ * @apiName Docs
+ * @apiVersion 0.1.0
+ * @apiGroup Service
+ *
+ * @apiSuccess (200) {html} docs Docs page to be viewed on browser.
+ *
+ */
+func (s *handler) handleDocs(r *mux.Router) {
+	r.PathPrefix("/" + config.DocsPath).
+		Handler(http.FileServer(http.Dir(config.DefaultDocsDir())))
+}
+
+func (s handler) handleNotFound(r *mux.Router) {
+	r.NotFoundHandler = http.HandlerFunc(
+		s.prepLogger(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "Nothing to see here", http.StatusNotFound)
+		}),
+	)
 }
 
 func (s *handler) guardChain(next http.HandlerFunc) http.HandlerFunc {
