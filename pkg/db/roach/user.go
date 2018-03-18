@@ -1,12 +1,12 @@
 package roach
 
 import (
-	"time"
-	"github.com/tomogoma/usersms/pkg/user"
-	"fmt"
-	"strings"
 	"database/sql"
+	"fmt"
 	"github.com/tomogoma/go-typed-errors"
+	"github.com/tomogoma/usersms/pkg/user"
+	"strings"
+	"time"
 )
 
 var allUserCols = ColDesc(ColID, ColName, ColGender, ColICEPhone, ColAvatarURL,
@@ -20,11 +20,11 @@ func (r *Roach) UpsertUser(uu user.UserUpdate) (*user.User, error) {
 	// updCols columns and their args/params will only be used during update of
 	// existing user.
 
-	updCols, args := addStrUpdate(uu.Name, "", []interface{}{})
-	updCols, args = addStrUpdate(uu.ICEPhone, updCols, args)
-	updCols, args = addStrUpdate(uu.Gender, updCols, args)
-	updCols, args = addStrUpdate(uu.AvatarURL, updCols, args)
-	updCols, args = addStrUpdate(uu.Bio, updCols, args)
+	updCols, args := addStrUpdate(uu.Name, ColName, "", []interface{}{})
+	updCols, args = addStrUpdate(uu.ICEPhone, ColICEPhone, updCols, args)
+	updCols, args = addStrUpdate(uu.Gender, ColGender, updCols, args)
+	updCols, args = addStrUpdate(uu.AvatarURL, ColAvatarURL, updCols, args)
+	updCols, args = addStrUpdate(uu.Bio, ColBio, updCols, args)
 
 	updCols = ColDesc(updCols, ColLastUpdated)
 	args = append(args, uu.Time)
@@ -45,7 +45,7 @@ func (r *Roach) UpsertUser(uu user.UserUpdate) (*user.User, error) {
 	`
 	usr, err := scanUser(r.db.QueryRow(q, args...))
 	if err != nil {
-		return nil, errors.Newf("scan fetched upserted user: %v", err)
+		return nil, err
 	}
 	return usr, nil
 }
@@ -89,9 +89,9 @@ func (r *Roach) User(userID string, offsetUpdateDate time.Time) (*user.User, err
 
 // addStrUpdate adds the value of su to cols and args if su.IsUpdating.
 // It returns the resulting cols, args.
-func addStrUpdate(su user.StringUpdate, cols string, args []interface{}) (string, []interface{}) {
+func addStrUpdate(su user.StringUpdate, col, cols string, args []interface{}) (string, []interface{}) {
 	if su.IsUpdating {
-		cols = ColDesc(cols, ColName)
+		cols = ColDesc(cols, col)
 		args = append(args, su.NewValue)
 	}
 	return cols, args
