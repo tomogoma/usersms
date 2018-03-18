@@ -3,17 +3,18 @@ package bootstrap
 import (
 	"io/ioutil"
 
+	"github.com/sony/sonyflake"
+	"github.com/tomogoma/crdb"
 	"github.com/tomogoma/go-api-guard"
 	"github.com/tomogoma/usersms/pkg/config"
 	"github.com/tomogoma/usersms/pkg/db/roach"
+	"github.com/tomogoma/usersms/pkg/jwt"
 	"github.com/tomogoma/usersms/pkg/logging"
-	"github.com/tomogoma/crdb"
+	"github.com/tomogoma/usersms/pkg/phone"
 	"github.com/tomogoma/usersms/pkg/rating"
 	"github.com/tomogoma/usersms/pkg/uid"
-	"github.com/sony/sonyflake"
 	"github.com/tomogoma/usersms/pkg/user"
-	"github.com/tomogoma/usersms/pkg/phone"
-	"github.com/tomogoma/usersms/pkg/jwt"
+	"time"
 )
 
 type Deps struct {
@@ -63,8 +64,11 @@ func Instantiate(confFile string, lg logging.Logger) Deps {
 	rater, err := rating.NewManager(tg, rdb, idGen)
 	logging.LogFatalOnError(lg, err, "New rating manager")
 	go func() {
-		err := rater.SyncUserRatings(conf.Ratings.SyncInterval)
-		logging.LogFatalOnError(lg, err, "Sync User Ratings Periodically")
+		for {
+			err := rater.SyncUserRatings(conf.Ratings.SyncInterval)
+			logging.LogWarnOnError(lg, err, "Sync User Ratings Periodically")
+			time.Sleep(conf.Ratings.SyncInterval)
+		}
 	}()
 
 	userMan, err := user.NewManager(rdb, tg, phone.Formatter{})
