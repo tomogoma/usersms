@@ -92,9 +92,15 @@ func (r *Roach) instantiate() error {
 	if err := crdbH.InstantiateDB(r.db, r.dbName, AllTableDescs...); err != nil {
 		return errors.Newf("instantiating db: %v", err)
 	}
-	if err := r.validateRunningVersion(); err != nil {
+	if runningVersion, err := r.validateRunningVersion(); err != nil {
 		if !r.IsNotFoundError(err) {
-			return fmt.Errorf("check db version: %v", err)
+			if err != r.compatibilityErr {
+				return fmt.Errorf("check db version: %v", err)
+			}
+			if err := r.migrate(runningVersion, Version); err != nil {
+				return fmt.Errorf("migrate from version %d to %d: %v",
+					runningVersion, Version, err)
+			}
 		}
 		if err := r.setRunningVersionCurrent(); err != nil {
 			return errors.Newf("set db version: %v", err)
@@ -104,25 +110,25 @@ func (r *Roach) instantiate() error {
 	return nil
 }
 
-func (r *Roach) validateRunningVersion() error {
+func (r *Roach) validateRunningVersion() (int, error) {
 	var runningVersion int
 	q := `SELECT ` + ColValue + ` FROM ` + TblConfigurations + ` WHERE ` + ColKey + `=$1`
 	var confB []byte
 	if err := r.db.QueryRow(q, keyDBVersion).Scan(&confB); err != nil {
 		if err == sql.ErrNoRows {
-			return errors.NewNotFoundf("config not found")
+			return -1, errors.NewNotFoundf("config not found")
 		}
-		return errors.Newf("get conf: %v", err)
+		return -1, errors.Newf("get conf: %v", err)
 	}
 	if err := json.Unmarshal(confB, &runningVersion); err != nil {
-		return errors.Newf("Unmarshalling config: %v", err)
+		return -1, errors.Newf("Unmarshalling config: %v", err)
 	}
 	if runningVersion != Version {
 		r.compatibilityErr = errors.Newf("db incompatible: need db"+
 			" version '%d', found '%d'", Version, runningVersion)
-		return r.compatibilityErr
+		return runningVersion, r.compatibilityErr
 	}
-	return nil
+	return runningVersion, nil
 }
 
 func (r *Roach) setRunningVersionCurrent() error {
@@ -138,7 +144,11 @@ func (r *Roach) setRunningVersionCurrent() error {
 			ON CONFLICT (` + ColKey + `)
 			DO UPDATE SET (` + updCols + `) = ($2, CURRENT_TIMESTAMP)`
 	res, err := r.db.Exec(q, keyDBVersion, valB)
-	return checkRowsAffected(res, err, 1)
+	if err := checkRowsAffected(res, err, 1); err != nil {
+		return err
+	}
+	r.compatibilityErr = nil
+	return nil
 }
 
 func checkRowsAffected(r sql.Result, err error, expAffected int64) error {

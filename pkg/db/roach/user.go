@@ -67,7 +67,7 @@ func (r *Roach) User(userID string, offsetUpdateDate time.Time) (*user.User, err
 	}
 
 	whereArgs := []interface{}{userID}
-	where := ColUserID + "=$1"
+	where := ColID + "=$1"
 
 	if !offsetUpdateDate.IsZero() {
 		whereArgs = append(whereArgs, offsetUpdateDate)
