@@ -2,9 +2,9 @@ package user
 
 import (
 	"github.com/tomogoma/go-typed-errors"
-	"time"
-	"net/url"
 	"github.com/tomogoma/usersms/pkg/jwt"
+	"net/url"
+	"time"
 )
 
 var validGenders = []string{"MALE", "FEMALE", "OTHER"}
@@ -27,6 +27,7 @@ type FormatValidPhoner interface {
 }
 
 type Manager struct {
+	errors.ClErrCheck
 	errors.ErrToHTTP
 
 	db    DB
@@ -56,7 +57,10 @@ func (m *Manager) Update(JWT string, update UserUpdate) (*User, error) {
 	}
 
 	if err := m.validateUserUpdate(&update); err != nil {
-		return nil, err
+		if m.IsClientError(err) {
+			return nil, err
+		}
+		return nil, errors.Newf("validate user update: %v", err)
 	}
 
 	update.Time = time.Now()
@@ -97,12 +101,29 @@ func (m *Manager) parseJWTErError(err error, errCtx string) error {
 // which is also formatted if valid.
 func (m *Manager) validateUserUpdate(uu *UserUpdate) error {
 	if uu == nil {
-		return errors.Newf("validating nil user")
+		return errors.Newf("nil UserUpdate")
 	}
 
 	// UserID is required.
 	if uu.UserID == "" {
 		return errors.NewClient("UserID was empty")
+	}
+
+	if _, err := m.db.User(uu.UserID, time.Time{}); err != nil {
+
+		if !m.db.IsNotFoundError(err) {
+			return errors.Newf("fetch user: %v", err)
+		}
+
+		// user not found, so mandatory values should be provided.
+
+		if !uu.Name.IsUpdating {
+			return errors.NewClient("Name must be provided during first time profile update")
+		}
+
+		if !uu.Gender.IsUpdating {
+			return errors.NewClient("Gender must be provided during first time profile update")
+		}
 	}
 
 	// Name must not be empty when updating.
