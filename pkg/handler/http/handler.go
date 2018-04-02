@@ -8,9 +8,9 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/pborman/uuid"
+	"github.com/tomogoma/crdb"
 	"github.com/tomogoma/go-typed-errors"
 	"github.com/tomogoma/usersms/pkg/config"
-	"github.com/tomogoma/usersms/pkg/db/queries"
 	"github.com/tomogoma/usersms/pkg/logging"
 	"github.com/tomogoma/usersms/pkg/rating"
 	"github.com/tomogoma/usersms/pkg/user"
@@ -348,9 +348,9 @@ func (s *handler) handleGetRatings(r *mux.Router) {
 				}
 
 				rtngs, err := s.rater.Ratings(req.Token, rating.Filter{
-					ForUserID:  queries.NewComparisonString(queries.OpET, req.ForUserID),
-					ByUserID:   queries.NewComparisonString(queries.OpET, req.ByUserID),
-					ForSection: queries.NewComparisonString(queries.OpET, req.ForSection),
+					ForUserID:  crdb.NewComparisonString(crdb.OpET, req.ForUserID),
+					ByUserID:   crdb.NewComparisonString(crdb.OpET, req.ByUserID),
+					ForSection: crdb.NewComparisonString(crdb.OpET, req.ForSection),
 					Offset:     req.Offset,
 					Count:      req.Count,
 				})

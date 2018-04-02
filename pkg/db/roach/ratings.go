@@ -1,10 +1,10 @@
 package roach
 
 import (
-	"github.com/tomogoma/usersms/pkg/rating"
 	"database/sql"
+	"github.com/tomogoma/crdb"
 	"github.com/tomogoma/go-typed-errors"
-	"github.com/tomogoma/usersms/pkg/db/queries"
+	"github.com/tomogoma/usersms/pkg/rating"
 )
 
 var allRatingCols = ColDesc(ColID, ColForSection, ColForUserID, ColByUserID,
@@ -54,11 +54,11 @@ func (r *Roach) Ratings(f rating.Filter) ([]rating.Rating, error) {
 	whereOp := "AND"
 	var where string
 	var args []interface{}
-	where, args = queries.JoinWhereClause(f.ForSection, ColForUserID, where, whereOp, args)
-	where, args = queries.JoinWhereClause(f.ForUserID, ColForUserID, where, whereOp, args)
-	where, args = queries.JoinWhereClause(f.ByUserID, ColByUserID, where, whereOp, args)
+	where, args = crdb.ConcatWhereClause(f.ForSection, ColForUserID, where, whereOp, args)
+	where, args = crdb.ConcatWhereClause(f.ForUserID, ColForUserID, where, whereOp, args)
+	where, args = crdb.ConcatWhereClause(f.ByUserID, ColByUserID, where, whereOp, args)
 
-	limit, args := queries.Pagination(f.Offset, int64(f.Count), args)
+	limit, args := crdb.Pagination(f.Offset, int64(f.Count), args)
 
 	q := `SELECT ` + allRatingCols + ` FROM ` + TblRatings + ` WHERE ` + where + ` ` + limit
 	rows, err := r.db.Query(q, args...)
@@ -93,7 +93,7 @@ func (r *Roach) AverageUserRatings(offset int64, count int32) ([]rating.AverageU
 	}
 
 	cols := ColDesc(ColForUserID, "AVG("+ColRating+")", "COUNT("+ColRating+")")
-	limit, args := queries.Pagination(offset, int64(count), []interface{}{})
+	limit, args := crdb.Pagination(offset, int64(count), []interface{}{})
 	q := `SELECT ` + cols + ` FROM ` + TblRatings + ` GROUP BY ` + ColForUserID + ` ` + limit
 
 	rows, err := r.db.Query(q, args...)

@@ -1,9 +1,9 @@
 package rating
 
 import (
-	"time"
+	"github.com/tomogoma/crdb"
 	"github.com/tomogoma/go-typed-errors"
-	"github.com/tomogoma/usersms/pkg/db/queries"
+	"time"
 )
 
 type Rating struct {
@@ -18,9 +18,9 @@ type Rating struct {
 }
 
 type Filter struct {
-	ForSection *queries.Comparison
-	ForUserID  *queries.Comparison
-	ByUserID   *queries.Comparison
+	ForSection *crdb.Comparison
+	ForUserID  *crdb.Comparison
+	ByUserID   *crdb.Comparison
 	Offset     int64
 	Count      int32
 }
