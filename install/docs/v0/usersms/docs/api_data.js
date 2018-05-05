@@ -176,9 +176,9 @@ define({ "api": [
           },
           {
             "group": "Header",
-            "optional": false,
+            "optional": true,
             "field": "Authorization",
-            "description": "<p>Bearer token containing auth token e.g. &quot;Bearer [value.of.jwt]&quot;</p>"
+            "description": "<p>Bearer token containing auth token e.g. &quot;Bearer [value.of.jwt]&quot;. Only public accessible values will be provided if this is not provided.</p>"
           }
         ]
       }
@@ -215,14 +215,14 @@ define({ "api": [
             "type": "String",
             "optional": false,
             "field": "ID",
-            "description": "<p>User's ID.</p>"
+            "description": "<p>(publicly accessible) User's ID.</p>"
           },
           {
             "group": "200 JSON Response",
             "type": "String",
             "optional": false,
             "field": "name",
-            "description": ""
+            "description": "<p>(publicly accessible) name</p>"
           },
           {
             "group": "200 JSON Response",
@@ -248,7 +248,7 @@ define({ "api": [
             "type": "String",
             "optional": false,
             "field": "avatarURL",
-            "description": "<p>User's profile picture URL.</p>"
+            "description": "<p>(publicly accessible) User's profile picture URL.</p>"
           },
           {
             "group": "200 JSON Response",
@@ -491,14 +491,14 @@ define({ "api": [
             "type": "String",
             "optional": false,
             "field": "ID",
-            "description": "<p>User's ID.</p>"
+            "description": "<p>(publicly accessible) User's ID.</p>"
           },
           {
             "group": "200 JSON Response",
             "type": "String",
             "optional": false,
             "field": "name",
-            "description": ""
+            "description": "<p>(publicly accessible) name</p>"
           },
           {
             "group": "200 JSON Response",
@@ -524,7 +524,7 @@ define({ "api": [
             "type": "String",
             "optional": false,
             "field": "avatarURL",
-            "description": "<p>User's profile picture URL.</p>"
+            "description": "<p>(publicly accessible) User's profile picture URL.</p>"
           },
           {
             "group": "200 JSON Response",
