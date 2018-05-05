@@ -196,7 +196,8 @@ func (s *handler) handleUserUpdate(r *mux.Router) {
  * @apiGroup Service
  *
  * @apiHeader x-api-key the api key
- * @apiHeader Authorization Bearer token containing auth token e.g. "Bearer [value.of.jwt]"
+ * @apiHeader [Authorization] Bearer token containing auth token e.g. "Bearer [value.of.jwt]".
+ * Only public accessible values will be provided if this is not provided.
  *
  * @apiParam (URL Param) {String} [userID] ID of the user to fetch.
  *
@@ -221,14 +222,11 @@ func (s *handler) handleGetUser(r *mux.Router) {
 					OffsetUpdateDate: r.URL.Query().Get(keyOffsetUpdateDate),
 				}
 
-				var err error
-				if req.Token, err = getToken(r); err != nil {
-					handleError(w, r, req, err, s)
-					return
-				}
+				req.Token, _ = getToken(r)
 
 				oud := time.Time{}
 				if req.OffsetUpdateDate != "" {
+					var err error
 					if oud, err = time.Parse(time.RFC3339, req.OffsetUpdateDate); err != nil {
 						err = errors.NewClientf("invalid offsetUpdateDate: %v", err)
 						handleError(w, r, req, err, s)

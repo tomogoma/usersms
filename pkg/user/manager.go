@@ -73,8 +73,10 @@ func (m *Manager) Update(JWT string, update UserUpdate) (*User, error) {
 
 func (m *Manager) User(JWT, ID string, offsetUpdateDate time.Time) (*User, error) {
 
-	if _, err := m.jwter.JWTValid(JWT); err != nil {
-		return nil, m.parseJWTErError(err, "check JWT valid")
+	if JWT != "" {
+		if _, err := m.jwter.JWTValid(JWT); err != nil {
+			return nil, m.parseJWTErError(err, "check JWT valid")
+		}
 	}
 
 	usr, err := m.db.User(ID, offsetUpdateDate)
@@ -84,6 +86,15 @@ func (m *Manager) User(JWT, ID string, offsetUpdateDate time.Time) (*User, error
 		}
 		return nil, errors.Newf("fetch user: %v", err)
 	}
+
+	if JWT == "" {
+		usr = &User{
+			ID:        usr.ID,
+			Name:      usr.Name,
+			AvatarURL: usr.AvatarURL,
+		}
+	}
+
 	return usr, nil
 }
 
