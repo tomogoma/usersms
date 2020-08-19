@@ -40,9 +40,13 @@ func InstantiateRoach(lg logging.Logger, conf crdb.Config) *roach.Roach {
 	return rdb
 }
 
-func InstantiateJWTHandler(lg logging.Logger, tknKyF string) *jwt.Manager {
-	JWTKey, err := ioutil.ReadFile(tknKyF)
-	logging.LogFatalOnError(lg, err, "Read JWT key file")
+func InstantiateJWTHandler(lg logging.Logger, srvcConf config.Service) *jwt.Manager {
+	JWTKey := []byte(srvcConf.TokenKey)
+	if len(JWTKey) == 0 {
+		var err error
+		JWTKey, err = ioutil.ReadFile(srvcConf.AuthTokenKeyFile)
+		logging.LogFatalOnError(lg, err, "Read JWT key file")
+	}
 	jwter, err := jwt.NewManager(jwt.WithHS256Key(JWTKey))
 	logging.LogFatalOnError(lg, err, "Instantiate JWT handler")
 	return jwter
@@ -50,11 +54,10 @@ func InstantiateJWTHandler(lg logging.Logger, tknKyF string) *jwt.Manager {
 
 func Instantiate(confFile string, lg logging.Logger) Deps {
 
-	conf, err := config.ReadFile(confFile)
-	logging.LogFatalOnError(lg, err, "Read config file")
+	conf := readConfig(confFile, lg)
 
 	rdb := InstantiateRoach(lg, conf.Database)
-	tg := InstantiateJWTHandler(lg, conf.Service.AuthTokenKeyFile)
+	tg := InstantiateJWTHandler(lg, conf.Service)
 
 	g, err := api.NewGuard(rdb, api.WithMasterKey(conf.Service.MasterAPIKey))
 	logging.LogFatalOnError(lg, err, "Instantate API access guard")
@@ -74,5 +77,30 @@ func Instantiate(confFile string, lg logging.Logger) Deps {
 	userMan, err := user.NewManager(rdb, tg, phone.Formatter{})
 	logging.LogFatalOnError(lg, err, "New user manager")
 
-	return Deps{Config: conf, Guard: g, Roach: rdb, JWTEr: tg, RatingMan: rater, UserMan: userMan}
+	return Deps{Config: *conf, Guard: g, Roach: rdb, JWTEr: tg, RatingMan: rater, UserMan: userMan}
+}
+
+func readConfig(confFile string, lg logging.Logger) *config.General {
+
+	conf := &config.General{}
+
+	if len(confFile) > 0 {
+		lg.WithField(logging.FieldAction, "Read config file").Info("started")
+		err := config.ReadFile(confFile, conf)
+		logging.LogWarnOnError(lg, err, "Read config file")
+		lg.WithField(logging.FieldAction, "Read config file").Info("complete")
+	}
+
+	lg.WithField(logging.FieldAction, "Read environment config values").Info("started")
+	err := config.ReadEnv(conf)
+	logging.LogWarnOnError(lg, err, "Read environment config values")
+	lg.WithField(logging.FieldAction, "Read environment config values").Info("complete")
+
+	if conf.Service.Port == nil {
+		port := 8080
+		lg.WithField(logging.FieldAction, "Set default Port").Infof("No port config found fallback to %d", port)
+		conf.Service.Port = &port
+	}
+
+	return conf
 }

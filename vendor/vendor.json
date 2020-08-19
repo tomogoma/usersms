@@ -3,6 +3,12 @@
 	"ignore": "test",
 	"package": [
 		{
+			"checksumSHA1": "JDQyky9RzzEZGHYWcDFpzkROVaI=",
+			"path": "github.com/Netflix/go-env",
+			"revision": "5660fe1ab40ac7cf3ac10f11695f51ca8d4ae559",
+			"revisionTime": "2020-05-12T17:08:51Z"
+		},
+		{
 			"checksumSHA1": "iqKEjY4Grc0IAfPagpbwO0pDSeM=",
 			"path": "github.com/cockroachdb/cockroach-go/crdb",
 			"revision": "c806b484b8611fc587b6abc07f8bb0f7824a78d6",
