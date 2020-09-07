@@ -2,9 +2,10 @@ package bootstrap
 
 import (
 	"io/ioutil"
+	"net/url"
+	"strings"
 
 	"github.com/sony/sonyflake"
-	"github.com/tomogoma/crdb"
 	"github.com/tomogoma/go-api-guard"
 	"github.com/tomogoma/usersms/pkg/config"
 	"github.com/tomogoma/usersms/pkg/db/roach"
@@ -26,16 +27,27 @@ type Deps struct {
 	RatingMan *rating.Manager
 }
 
-func InstantiateRoach(lg logging.Logger, conf crdb.Config) *roach.Roach {
+func InstantiateRoach(lg logging.Logger, conf config.General) *roach.Roach {
 	var opts []roach.Option
-	if dsn := conf.FormatDSN(); dsn != "" {
+	dsn := conf.DatabaseURL
+	if dsn == "" {
+		dsn = conf.Database.FormatDSN()
+	}
+	if dsn != "" {
 		opts = append(opts, roach.WithDSN(dsn))
 	}
-	if dbn := conf.DBName; dbn != "" {
-		opts = append(opts, roach.WithDBName(dbn))
+
+	dbURL, err := url.Parse(dsn)
+	if err == nil {
+		if dbURL.Path != "" {
+			dbn := strings.Replace(dbURL.Path, "/", "", 1)
+			opts = append(opts, roach.WithDBName(dbn))
+		}
 	}
+	logging.LogWarnOnError(lg, err, "parse DB URL")
+
 	rdb := roach.NewRoach(opts...)
-	err := rdb.InitDBIfNot()
+	err = rdb.InitDBIfNot()
 	logging.LogWarnOnError(lg, err, "Initiate Cockroach DB connection")
 	return rdb
 }
@@ -56,7 +68,7 @@ func Instantiate(confFile string, lg logging.Logger) Deps {
 
 	conf := readConfig(confFile, lg)
 
-	rdb := InstantiateRoach(lg, conf.Database)
+	rdb := InstantiateRoach(lg, *conf)
 	tg := InstantiateJWTHandler(lg, conf.Service)
 
 	g, err := api.NewGuard(rdb, api.WithMasterKey(conf.Service.MasterAPIKey))
@@ -77,6 +89,10 @@ func Instantiate(confFile string, lg logging.Logger) Deps {
 	userMan, err := user.NewManager(rdb, tg, phone.Formatter{})
 	logging.LogFatalOnError(lg, err, "New user manager")
 
+	clg := lg.WithField(logging.FieldAction, "configuration values")
+	clg.Infof("Allowed origins:\t\t%v", conf.Service.AllowedOrigins)
+	clg.Infof("Port:\t\t\t%v", *conf.Service.Port)
+	clg.Infof("Ratings sync interval:\t%v", conf.Ratings.SyncInterval)
 	return Deps{Config: *conf, Guard: g, Roach: rdb, JWTEr: tg, RatingMan: rater, UserMan: userMan}
 }
 

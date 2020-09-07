@@ -71,10 +71,9 @@ func ReadEnv(conf *General) error {
 	if err != nil {
 		return fmt.Errorf("read service config values: %v", err)
 	}
-	if err := env.Unmarshal(envSet, &conf.Service); err != nil {
-		return fmt.Errorf("read Microservice config values: %v", err)
+	if err := env.Unmarshal(envSet, &conf.Ratings); err != nil {
+		return fmt.Errorf("read Ratings config values: %v", err)
 	}
-
 	if dbURL, exists := envSet[EnvKeyDatabaseURL]; exists {
 		conf.DatabaseURL = dbURL
 	}
